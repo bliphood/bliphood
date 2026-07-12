@@ -168,7 +168,7 @@ const DEPLOY_BLOCK = 89407979;
 
 // Pre-seeded miners known on-chain (from deploy to now)
 const SEED_MINERS = [
-  "0x5516F125a7e7907d94d854b01ab26923b83c72c1",
+  "0x55167d2589307d60344149f34e219034074a72c1",
   "0x608072175aC8e7D8c54A14C392b3BafEDce85D67",
 ];
 
