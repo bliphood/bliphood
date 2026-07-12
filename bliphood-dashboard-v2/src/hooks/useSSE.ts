@@ -1,36 +1,79 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 export function useSSE<T>() {
   const [data, setData] = useState<T[]>([]);
   const [connected, setConnected] = useState(false);
+  const prevConnected = useRef(false);
 
   useEffect(() => {
-    const es = new EventSource("/api/sse");
+    let es: EventSource | null = null;
+    let stopped = false;
 
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
+    const connect = () => {
+      if (stopped) return;
+      es = new EventSource("/api/sse");
 
-    es.addEventListener("solve", (e: MessageEvent) => {
-      try {
-        const parsed = JSON.parse(e.data);
-        setData((prev) => [parsed, ...prev].slice(0, 100));
-      } catch { /* ignore */ }
-    });
+      es.onopen = () => {
+        setConnected(true);
+        if (!prevConnected.current) {
+          prevConnected.current = true;
+          fetch("/api/recent")
+            .then((r) => r.json())
+            .then((res) => {
+              if (stopped) return;
+              const recent = (res.activity || []) as T[];
+              if (recent.length > 0) {
+                setData((prev) => {
+                  const existing = new Set(prev.map((item: any) => item.txHash || item.time));
+                  const merged = [...recent.filter((item: any) => !existing.has(item.txHash || item.time)), ...prev];
+                  return merged.slice(0, 100);
+                });
+              }
+            })
+            .catch(() => {});
+        }
+      };
 
-    es.addEventListener("stats", (e: MessageEvent) => {
-      try {
-        const parsed = JSON.parse(e.data);
-        setData((prev) => {
-          const updated = [...prev];
-          if (updated.length > 0) updated[0] = { ...updated[0], ...parsed };
-          return updated;
-        });
-      } catch { /* ignore */ }
-    });
+      es.onerror = () => {
+        prevConnected.current = false;
+        setConnected(false);
+        es?.close();
+        es = null;
+        setTimeout(connect, 3000);
+      };
 
-    return () => { es.close(); };
+      es.addEventListener("solve", (e: MessageEvent) => {
+        try {
+          const parsed = JSON.parse(e.data);
+          setData((prev) => {
+            if (prev.some((item: any) => item.txHash && item.txHash === parsed.txHash)) return prev;
+            return [parsed, ...prev].slice(0, 100);
+          });
+        } catch { /* ignore */ }
+      });
+
+      es.addEventListener("stats", (e: MessageEvent) => {
+        try {
+          const parsed = JSON.parse(e.data);
+          setData((prev) => {
+            const idx = prev.findIndex((item: any) => item.wallet === parsed.wallet && item.nonce === parsed.nonce);
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], ...parsed };
+            return updated;
+          });
+        } catch { /* ignore */ }
+      });
+    };
+
+    connect();
+
+    return () => {
+      stopped = true;
+      es?.close();
+    };
   }, []);
 
   const clearData = useCallback(() => setData([]), []);

@@ -14,7 +14,7 @@ const FOOTER_COLS: { title: string; links: { label: string; href: string }[] }[]
     title: "DEVELOPERS",
     links: [
       { label: "Smart Contract", href: "https://explorer.testnet.chain.robinhood.com/address/0x08f8C4aeb91c1881385C6922641A501d68bA9575" },
-      { label: "GitHub", href: "https://github.com/Vivy110/BlipHood" },
+      { label: "GitHub", href: "https://github.com/bliphood/bliphood" },
     ],
   },
   {

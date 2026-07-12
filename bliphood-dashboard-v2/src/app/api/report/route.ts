@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentStore, getActivityLog, broadcastSSE, countActiveAgents } from "@/lib/store";
-import { getPuzzleInfo, formatEther } from "@/lib/contract";
+import { getPuzzleInfo, invalidatePuzzleCache, invalidateLeaderboardCache } from "@/lib/contract";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { wallet, totalSolves, lastNonce, solveTimeMs, gasUsed, txHash } = body;
   if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });
+
+  // Dedup: skip if this txHash is already in the activity log
+  const log = getActivityLog();
+  if (txHash && log.some((e) => e.txHash === txHash)) {
+    return NextResponse.json({ ok: true, deduped: true });
+  }
+
+  invalidatePuzzleCache();
+  invalidateLeaderboardCache();
 
   const puzzle = await getPuzzleInfo();
   const amount = puzzle?.mintAmount || 20000;
@@ -19,7 +28,6 @@ export async function POST(req: NextRequest) {
     solveTimeMs: solveTimeMs || 0,
   });
 
-  const log = getActivityLog();
   const entry = {
     wallet: wallet.slice(0, 6) + "..." + wallet.slice(-4),
     totalSolves: totalSolves || 0,

@@ -39,7 +39,10 @@ export function addActivity(entry: { wallet: string; totalSolves: number; nonce:
 }
 
 export function broadcastSSE(event: string, data: string) {
-  for (const send of getSSEClients()) {
-    try { send(`event: ${event}\ndata: ${data}\n\n`); } catch { /* */ }
+  const clients = getSSEClients();
+  const dead: ((data: string) => void)[] = [];
+  for (const send of clients) {
+    try { send(`event: ${event}\ndata: ${data}\n\n`); } catch { dead.push(send); }
   }
+  for (const s of dead) clients.delete(s);
 }

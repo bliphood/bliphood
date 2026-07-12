@@ -49,6 +49,11 @@ let puzzleCache: {
 let puzzleCacheAt = 0;
 const PUZZLE_CACHE_MS = 5000;
 
+export function invalidatePuzzleCache() {
+  puzzleCache = null;
+  puzzleCacheAt = 0;
+}
+
 export async function getPuzzleInfo() {
   const now = Date.now();
   if (puzzleCache && now - puzzleCacheAt < PUZZLE_CACHE_MS) return puzzleCache;
@@ -161,16 +166,20 @@ import { getAgentStore } from "./store";
 
 let lbCache: {
   entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }>;
+  period: string;
   timestamp: number;
 } | null = null;
 
-export async function getCachedLeaderboard() {
+export function invalidateLeaderboardCache() {
+  lbCache = null;
+}
+
+export async function getCachedLeaderboard(period: "24h" | "7d" | "all" = "all") {
   const now = Date.now();
-  if (lbCache && now - lbCache.timestamp < 15000) return lbCache.entries;
+  if (lbCache && lbCache.period === period && now - lbCache.timestamp < 15000) return lbCache.entries;
 
   const agents = getAgentStore();
   if (agents.size === 0) {
-    // Fallback: query owner minerStats
     try {
       const owner = await getContract().owner();
       const stats = await getMinerStats(owner);
@@ -184,8 +193,9 @@ export async function getCachedLeaderboard() {
           fastestSolveMs: 0,
           lastSolveTime: stats.lastSolveTime,
         };
-        lbCache = { entries: [entry], timestamp: now };
-        return [entry];
+        const filtered = filterByPeriod([entry], period, now);
+        lbCache = { entries: filtered, period, timestamp: now };
+        return filtered;
       }
     } catch { /* */ }
     return [];
@@ -209,6 +219,13 @@ export async function getCachedLeaderboard() {
   }
 
   entries.sort((a, b) => b.totalSolved - a.totalSolved);
-  lbCache = { entries, timestamp: now };
-  return entries;
+  const filtered = filterByPeriod(entries, period, now);
+  lbCache = { entries: filtered, period, timestamp: now };
+  return filtered;
+}
+
+function filterByPeriod<T extends { lastSolveTime: number }>(entries: T[], period: "24h" | "7d" | "all", now: number): T[] {
+  if (period === "all") return entries;
+  const cutoff = now / 1000 - (period === "24h" ? 86400 : 604800);
+  return entries.filter((e) => e.lastSolveTime >= cutoff);
 }

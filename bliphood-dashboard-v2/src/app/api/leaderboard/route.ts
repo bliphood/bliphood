@@ -4,8 +4,9 @@ import { getCachedLeaderboard } from "@/lib/contract";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get("limit") || "100");
+  const period = (searchParams.get("period") || "all") as "24h" | "7d" | "all";
 
-  const entries = await getCachedLeaderboard();
+  const entries = await getCachedLeaderboard(period);
   const sliced = entries.slice(0, limit);
   const ranked = sliced.map((e, i) => ({
     rank: i + 1,
@@ -20,5 +21,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     entries: ranked,
     totalMiners: entries.length,
+    period,
   });
 }
