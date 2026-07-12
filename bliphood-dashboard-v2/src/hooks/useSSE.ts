@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function useSSE<T>() {
   const [data, setData] = useState<T[]>([]);
   const [connected, setConnected] = useState(false);
   const prevConnected = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -51,6 +53,8 @@ export function useSSE<T>() {
             if (prev.some((item: any) => item.txHash && item.txHash === parsed.txHash)) return prev;
             return [parsed, ...prev].slice(0, 100);
           });
+          queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+          queryClient.invalidateQueries({ queryKey: ["puzzle"] });
         } catch { /* ignore */ }
       });
 
@@ -74,7 +78,7 @@ export function useSSE<T>() {
       stopped = true;
       es?.close();
     };
-  }, []);
+  }, [queryClient]);
 
   const clearData = useCallback(() => setData([]), []);
 
