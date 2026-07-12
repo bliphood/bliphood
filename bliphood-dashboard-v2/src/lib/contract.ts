@@ -184,12 +184,19 @@ export async function getCachedLeaderboard(period: "24h" | "7d" | "all" = "all")
 
   try {
     const currentBlock = await p.getBlockNumber();
-    const fromBlock = Math.max(currentBlock - 200, 89407979);
+    const DEPLOY_BLOCK = 89407979;
+    let fromBlock = Math.max(currentBlock - 5000, DEPLOY_BLOCK);
 
-    const events = await c.queryFilter(c.filters.Minted(), fromBlock, currentBlock);
-    for (const e of events) {
-      const log = e as ethers.EventLog;
-      miners.add((log.args[0] as string).toLowerCase());
+    while (fromBlock <= currentBlock) {
+      const toBlock = Math.min(fromBlock + 1999, currentBlock);
+      try {
+        const events = await c.queryFilter(c.filters.Minted(), fromBlock, toBlock);
+        for (const e of events) {
+          miners.add(((e as ethers.EventLog).args[0] as string).toLowerCase());
+        }
+      } catch { /* skip batch */ }
+      if (toBlock >= currentBlock) break;
+      fromBlock = toBlock + 1;
     }
   } catch { /* */ }
 
