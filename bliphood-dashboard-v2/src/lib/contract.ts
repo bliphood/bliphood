@@ -161,8 +161,8 @@ export async function fetchWalletMintedEvents(wallet: string): Promise<Array<{
   return results.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-// Leaderboard: query minerStats from agents that reported via /api/report
-import { getAgentStore } from "./store";
+// Leaderboard: query on-chain Minted events + getMinerStats (Vercel cross-instance safe)
+const LB_CACHE_MS = 30000;
 
 let lbCache: {
   entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }>;
@@ -176,50 +176,53 @@ export function invalidateLeaderboardCache() {
 
 export async function getCachedLeaderboard(period: "24h" | "7d" | "all" = "all") {
   const now = Date.now();
-  if (lbCache && lbCache.period === period && now - lbCache.timestamp < 15000) return lbCache.entries;
+  if (lbCache && lbCache.period === period && now - lbCache.timestamp < LB_CACHE_MS) return lbCache.entries;
 
-  const agents = getAgentStore();
-  if (agents.size === 0) {
+  const c = getContract();
+  const p = getProvider();
+  const miners = new Set<string>();
+
+  try {
+    const currentBlock = await p.getBlockNumber();
+    const fromBlock = Math.max(currentBlock - 200, 89407979);
+
+    const events = await c.queryFilter(c.filters.Minted(), fromBlock, currentBlock);
+    for (const e of events) {
+      const log = e as ethers.EventLog;
+      miners.add((log.args[0] as string).toLowerCase());
+    }
+  } catch { /* */ }
+
+  if (miners.size === 0) {
     try {
-      const owner = await getContract().owner();
-      const stats = await getMinerStats(owner);
-      if (stats && stats.totalSolved > 0) {
-        const entry = {
-          wallet: shortAddr(owner),
-          walletFull: owner,
-          totalSolved: stats.totalSolved,
-          totalEarned: stats.totalBlipEarned,
-          bestStreak: stats.bestStreak,
-          fastestSolveMs: 0,
-          lastSolveTime: stats.lastSolveTime,
-        };
-        const filtered = filterByPeriod([entry], period, now);
-        lbCache = { entries: filtered, period, timestamp: now };
-        return filtered;
-      }
+      const owner = await c.owner();
+      miners.add(owner.toLowerCase());
     } catch { /* */ }
-    return [];
   }
+
+  const minerArr = Array.from(miners).slice(0, 50);
+  const statsResults = await Promise.allSettled(minerArr.map((addr) => getMinerStats(addr)));
 
   const entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }> = [];
 
-  for (const [addr, agent] of agents) {
-    const stats = await getMinerStats(addr);
-    if (stats && stats.totalSolved > 0) {
-      entries.push({
-        wallet: shortAddr(addr),
-        walletFull: addr,
-        totalSolved: stats.totalSolved,
-        totalEarned: stats.totalBlipEarned,
-        bestStreak: stats.bestStreak,
-        fastestSolveMs: agent.solveTimeMs || 0,
-        lastSolveTime: stats.lastSolveTime,
-      });
-    }
+  for (let i = 0; i < minerArr.length; i++) {
+    const result = statsResults[i];
+    if (result.status !== "fulfilled" || !result.value || result.value.totalSolved === 0) continue;
+    const stats = result.value;
+    entries.push({
+      wallet: shortAddr(minerArr[i]),
+      walletFull: minerArr[i],
+      totalSolved: stats.totalSolved,
+      totalEarned: stats.totalBlipEarned,
+      bestStreak: stats.bestStreak,
+      fastestSolveMs: 0,
+      lastSolveTime: stats.lastSolveTime,
+    });
   }
 
   entries.sort((a, b) => b.totalSolved - a.totalSolved);
   const filtered = filterByPeriod(entries, period, now);
+  if (filtered.length > 100) filtered.length = 100;
   lbCache = { entries: filtered, period, timestamp: now };
   return filtered;
 }
