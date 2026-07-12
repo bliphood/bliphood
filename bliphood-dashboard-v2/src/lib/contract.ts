@@ -165,7 +165,6 @@ export async function fetchWalletMintedEvents(wallet: string): Promise<Array<{
 const LB_CACHE_MS = 15000;
 const KNOWN_MINERS = new Set<string>();
 const DEPLOY_BLOCK = 89407979;
-const MAX_SCAN_CALLS = 10; // Alchemy free tier: 10 blocks max per eth_getLogs
 
 // Pre-seeded miners known on-chain (from deploy to now)
 const SEED_MINERS = [
@@ -193,24 +192,16 @@ async function discoverMiners(c: ethers.Contract, p: ethers.JsonRpcProvider): Pr
   const miners = new Set<string>();
   try {
     const current = await p.getBlockNumber();
-    // Scan 100 recent blocks (10 calls × 10 blocks each, Alchemy free tier limit)
     const fromBlock = Math.max(current - 100, DEPLOY_BLOCK);
 
-    const ranges: Array<[number, number]> = [];
     for (let f = fromBlock; f <= current; f += 11) {
-      ranges.push([f, Math.min(f + 10, current)]);
-      if (ranges.length >= MAX_SCAN_CALLS) break;
-    }
-
-    const results = await Promise.allSettled(
-      ranges.map(([from, to]) => c.queryFilter(c.filters.Minted(), from, to).catch(() => [] as ethers.EventLog[]))
-    );
-
-    for (const r of results) {
-      if (r.status !== "fulfilled") continue;
-      for (const e of r.value) {
-        miners.add(((e as ethers.EventLog).args[0] as string).toLowerCase());
-      }
+      const to = Math.min(f + 10, current);
+      try {
+        const events = await c.queryFilter(c.filters.Minted(), f, to);
+        for (const e of events) {
+          miners.add(((e as ethers.EventLog).args[0] as string).toLowerCase());
+        }
+      } catch { /* */ }
     }
   } catch { /* */ }
   return miners;
@@ -242,17 +233,18 @@ export async function getCachedLeaderboard(period: "24h" | "7d" | "all" = "all")
   }
 
   const minerArr = Array.from(KNOWN_MINERS).slice(-50);
-  const statsResults = await Promise.allSettled(minerArr.map((addr) => getMinerStats(addr)));
-
+  // Sequential getMinerStats to avoid Alchemy free tier rate limit
   const entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }> = [];
 
-  for (let i = 0; i < minerArr.length; i++) {
-    const result = statsResults[i];
-    if (result.status !== "fulfilled" || !result.value || result.value.totalSolved === 0) continue;
-    const stats = result.value;
+  const sleep = (ms: number) => new Promise((r) => { setTimeout(r, ms); });
+
+  for (const addr of minerArr) {
+    const stats = await getMinerStats(addr);
+    await sleep(100);
+    if (!stats || stats.totalSolved === 0) continue;
     entries.push({
-      wallet: shortAddr(minerArr[i]),
-      walletFull: minerArr[i],
+      wallet: shortAddr(addr),
+      walletFull: addr,
       totalSolved: stats.totalSolved,
       totalEarned: stats.totalBlipEarned,
       bestStreak: stats.bestStreak,
