@@ -167,6 +167,14 @@ const KNOWN_MINERS = new Set<string>();
 const DEPLOY_BLOCK = 89407979;
 const MAX_SCAN_CALLS = 10; // Alchemy free tier: 10 blocks max per eth_getLogs
 
+// Pre-seeded miners known on-chain (from deploy to now)
+const SEED_MINERS = [
+  "0x5516F125a7e7907d94d854b01ab26923b83c72c1",
+  "0x608072175aC8e7D8c54A14C392b3BafEDce85D67",
+];
+
+for (const m of SEED_MINERS) KNOWN_MINERS.add(m.toLowerCase());
+
 let lbCache: {
   entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }>;
   period: string;
