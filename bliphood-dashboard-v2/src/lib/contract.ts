@@ -162,7 +162,10 @@ export async function fetchWalletMintedEvents(wallet: string): Promise<Array<{
 }
 
 // Leaderboard: query on-chain Minted events + getMinerStats (Vercel cross-instance safe)
-const LB_CACHE_MS = 30000;
+const LB_CACHE_MS = 15000;
+const KNOWN_MINERS = new Set<string>();
+const DEPLOY_BLOCK = 89407979;
+const MAX_SCAN_CALLS = 10; // Alchemy free tier: 10 blocks max per eth_getLogs
 
 let lbCache: {
   entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }>;
@@ -174,40 +177,63 @@ export function invalidateLeaderboardCache() {
   lbCache = null;
 }
 
+export function registerMiner(addr: string) {
+  KNOWN_MINERS.add(addr.toLowerCase());
+}
+
+async function discoverMiners(c: ethers.Contract, p: ethers.JsonRpcProvider): Promise<Set<string>> {
+  const miners = new Set<string>();
+  try {
+    const current = await p.getBlockNumber();
+    // Scan 100 recent blocks (10 calls × 10 blocks each, Alchemy free tier limit)
+    const fromBlock = Math.max(current - 100, DEPLOY_BLOCK);
+
+    const ranges: Array<[number, number]> = [];
+    for (let f = fromBlock; f <= current; f += 11) {
+      ranges.push([f, Math.min(f + 10, current)]);
+      if (ranges.length >= MAX_SCAN_CALLS) break;
+    }
+
+    const results = await Promise.allSettled(
+      ranges.map(([from, to]) => c.queryFilter(c.filters.Minted(), from, to).catch(() => [] as ethers.EventLog[]))
+    );
+
+    for (const r of results) {
+      if (r.status !== "fulfilled") continue;
+      for (const e of r.value) {
+        miners.add(((e as ethers.EventLog).args[0] as string).toLowerCase());
+      }
+    }
+  } catch { /* */ }
+  return miners;
+}
+
 export async function getCachedLeaderboard(period: "24h" | "7d" | "all" = "all") {
   const now = Date.now();
   if (lbCache && lbCache.period === period && now - lbCache.timestamp < LB_CACHE_MS) return lbCache.entries;
 
   const c = getContract();
-  const p = getProvider();
-  const miners = new Set<string>();
 
+  // Discover miners from on-chain Minted events (parallel block scans)
+  const miners = await discoverMiners(c, getProvider());
+
+  // Merge in-memory agentStore miners
   try {
-    const currentBlock = await p.getBlockNumber();
-    const DEPLOY_BLOCK = 89407979;
-    let fromBlock = Math.max(currentBlock - 5000, DEPLOY_BLOCK);
-
-    while (fromBlock <= currentBlock) {
-      const toBlock = Math.min(fromBlock + 1999, currentBlock);
-      try {
-        const events = await c.queryFilter(c.filters.Minted(), fromBlock, toBlock);
-        for (const e of events) {
-          miners.add(((e as ethers.EventLog).args[0] as string).toLowerCase());
-        }
-      } catch { /* skip batch */ }
-      if (toBlock >= currentBlock) break;
-      fromBlock = toBlock + 1;
+    const { getAgentStore } = await import("./store");
+    for (const addr of getAgentStore().keys()) {
+      miners.add(addr.toLowerCase());
     }
   } catch { /* */ }
 
-  if (miners.size === 0) {
+  for (const m of miners) KNOWN_MINERS.add(m);
+
+  if (KNOWN_MINERS.size === 0) {
     try {
-      const owner = await c.owner();
-      miners.add(owner.toLowerCase());
+      KNOWN_MINERS.add((await c.owner()).toLowerCase());
     } catch { /* */ }
   }
 
-  const minerArr = Array.from(miners).slice(0, 50);
+  const minerArr = Array.from(KNOWN_MINERS).slice(-50);
   const statsResults = await Promise.allSettled(minerArr.map((addr) => getMinerStats(addr)));
 
   const entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }> = [];

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentStore, getActivityLog, broadcastSSE, countActiveAgents } from "@/lib/store";
-import { getPuzzleInfo, invalidatePuzzleCache, invalidateLeaderboardCache } from "@/lib/contract";
+import { getPuzzleInfo, invalidatePuzzleCache, invalidateLeaderboardCache, registerMiner } from "@/lib/contract";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
 
   invalidatePuzzleCache();
   invalidateLeaderboardCache();
+  registerMiner(wallet);
 
   const puzzle = await getPuzzleInfo();
   const amount = puzzle?.mintAmount || 20000;
