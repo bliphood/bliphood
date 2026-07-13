@@ -3,9 +3,30 @@ import { getSSEClients } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
+const ALLOWED_ORIGINS = ["bliphood.vercel.app", "localhost"];
+
+function isOriginAllowed(origin: string | null): boolean {
+  if (!origin) return true;
+  try {
+    const hostname = new URL(origin).hostname;
+    return ALLOWED_ORIGINS.some((o) => hostname === o || hostname.endsWith("." + o));
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(req: NextRequest) {
-  const encoder = new TextEncoder();
+  const origin = req.headers.get("origin");
+  if (origin && !isOriginAllowed(origin)) {
+    return new Response("unauthorized", { status: 403 });
+  }
+
   const clients = getSSEClients();
+  if (clients.size >= 100) {
+    return new Response("too many connections", { status: 503 });
+  }
+
+  const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     start(controller) {
@@ -33,7 +54,7 @@ export async function GET(req: NextRequest) {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": origin || "https://bliphood.vercel.app",
     },
   });
 }

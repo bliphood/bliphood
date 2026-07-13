@@ -22,7 +22,7 @@ function RankBadge({ rank }: { rank: number }) {
 export function Leaderboard() {
   const [period, setPeriod] = useState<FilterPeriod>("all");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["leaderboard", period],
     queryFn: () => fetchLeaderboard(period),
     refetchInterval: 15000,

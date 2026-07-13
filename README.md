@@ -141,6 +141,6 @@ python agent_solver.py --workers 4
 
 ## Links
 
-- 📊 Dashboard: https://bliphood-dashboard.vercel.app
+- 📊 Dashboard: https://bliphood.vercel.app
 - 🔍 Explorer: https://explorer.testnet.chain.robinhood.com/address/0x08f8C4aeb91c1881385C6922641A501d68bA9575
 - 📖 Tutorial AI Mint: [bliphood-agent/TUTORIAL.md](bliphood-agent/TUTORIAL.md)

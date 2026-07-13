@@ -9,7 +9,7 @@ import type { PuzzleInfo, SolveEvent } from "@/lib/types";
 export function LiveMonitor() {
   const [copied, setCopied] = useState(false);
 
-  const { data: puzzle } = useQuery({
+  const { data: puzzle, error } = useQuery({
     queryKey: ["puzzle"],
     queryFn: fetchPuzzleInfo,
     refetchInterval: 10000,

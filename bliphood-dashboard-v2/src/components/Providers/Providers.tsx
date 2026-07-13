@@ -10,7 +10,7 @@ const bliphoodChain = defineChain({
   id: 46630,
   name: "Robinhood Testnet",
   nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: ["https://robinhood-testnet.g.alchemy.com/v2/52gCkKBLBwldBTiLFIPcT"] } },
+  rpcUrls: { default: { http: [process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || "https://robinhood-testnet.g.alchemy.com/v2/demo"] } },
   blockExplorers: { default: { name: "Explorer", url: "https://explorer.testnet.chain.robinhood.com" } },
 });
 

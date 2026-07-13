@@ -105,7 +105,7 @@ export function WalletDashboard() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  const { data: walletData, isLoading } = useQuery({
+  const { data: walletData, isLoading, error } = useQuery({
     queryKey: ["solves", address],
     queryFn: async () => fetchSolveHistory(address!),
     enabled: !!address && mounted,

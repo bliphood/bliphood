@@ -6,6 +6,7 @@ Tracks solve history, gas usage, timing, and provides stats queries.
 
 import sqlite3
 import time
+import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -219,34 +220,54 @@ def get_daily_summary(days: int = 14) -> list[dict]:
     conn = _connect()
     try:
         _ensure_columns(conn)
+        cutoff = time.time() - days * 86400
         rows = conn.execute("""
-            SELECT
-                date(timestamp, 'unixepoch') AS day,
-                COUNT(*) AS attempts,
-                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) AS solves,
-                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS failures,
-                COALESCE(AVG(CASE WHEN success = 1 THEN solve_ms END), 0) AS avg_ms,
-                COALESCE(SUM(CASE WHEN success = 1 THEN gas_used END), 0) AS total_gas,
-                COALESCE(SUM(CASE WHEN success = 1 THEN bliphd_amount END), 0) AS total_bliphd,
-                COALESCE(SUM(CASE WHEN success = 1 THEN eth_spent_wei END), 0) AS total_eth_wei
+            SELECT timestamp,
+                   success,
+                   solve_ms,
+                   gas_used,
+                   bliphd_amount,
+                   eth_spent_wei
             FROM solves
             WHERE timestamp > ?
-            GROUP BY day
-            ORDER BY day DESC
-        """, (time.time() - days * 86400,)).fetchall()
+            ORDER BY timestamp
+        """, (cutoff,)).fetchall()
 
-        return [
-            {
-                "day": r[0],
-                "attempts": r[1],
-                "solves": r[2],
-                "failures": r[3],
-                "avg_solve_ms": round(r[4]),
-                "total_gas": r[5],
-                "total_bliphd": r[6],
-                "total_eth_spent": round(r[7] / 1e18, 4),
-            }
-            for r in rows
-        ]
+        groups: dict[str, dict] = {}
+        for ts, success, solve_ms, gas_used, bliphd_amount, eth_spent_wei in rows:
+            day = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+            if day not in groups:
+                groups[day] = {
+                    "attempts": 0, "solves": 0, "failures": 0,
+                    "solve_ms_sum": 0, "solve_ms_count": 0,
+                    "total_gas": 0, "total_bliphd": 0, "total_eth_wei": 0,
+                }
+            g = groups[day]
+            g["attempts"] += 1
+            if success:
+                g["solves"] += 1
+                if solve_ms:
+                    g["solve_ms_sum"] += solve_ms
+                    g["solve_ms_count"] += 1
+                g["total_gas"] += gas_used or 0
+                g["total_bliphd"] += bliphd_amount or 0
+                g["total_eth_wei"] += eth_spent_wei or 0
+            else:
+                g["failures"] += 1
+
+        result = []
+        for day in sorted(groups.keys(), reverse=True):
+            g = groups[day]
+            result.append({
+                "day": day,
+                "attempts": g["attempts"],
+                "solves": g["solves"],
+                "failures": g["failures"],
+                "avg_solve_ms": round(g["solve_ms_sum"] / g["solve_ms_count"]) if g["solve_ms_count"] else 0,
+                "total_gas": g["total_gas"],
+                "total_bliphd": g["total_bliphd"],
+                "total_eth_spent": round(g["total_eth_wei"] / 1e18, 4),
+            })
+        return result
     finally:
         conn.close()

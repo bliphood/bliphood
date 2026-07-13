@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import ABI from "./abi.json";
 
-const RPC = "https://robinhood-testnet.g.alchemy.com/v2/52gCkKBLBwldBTiLFIPcT";
+const RPC = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || "https://robinhood-testnet.g.alchemy.com/v2/demo";
 const CONTRACT = "0x08f8C4aeb91c1881385C6922641A501d68bA9575";
 export const EXPLORER = "https://explorer.testnet.chain.robinhood.com";
 export const DECIMALS = 18;

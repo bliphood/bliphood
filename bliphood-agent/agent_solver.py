@@ -101,7 +101,7 @@ if _ENV_PATH.exists():
             if _line and not _line.startswith("#") and "=" in _line:
                 _key, _val = _line.split("=", 1)
                 _key = _key.strip()
-                _val = _val.strip().strip("'").strip('"')
+                _val = _val.strip().strip("\"'")
                 if _key and _val and _key not in os.environ:
                     os.environ[_key] = _val
 
@@ -117,7 +117,8 @@ MAX_NONCE     = 2**64 - 1
 
 _raw_key = os.getenv("BLIPHOOD_PRIVATE_KEY") or os.getenv("DEPLOYER_PRIVATE_KEY", "")
 PRIVATE_KEY = _raw_key[2:] if _raw_key.startswith("0x") or _raw_key.startswith("0X") else _raw_key
-DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://bliphood-dashboard.vercel.app/api/report")
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://bliphood.vercel.app/api/report")
+REPORT_SECRET = os.getenv("REPORT_SECRET", "bliphood-agent-secret")
 
 # -----------------------------------------------------------
 # Puzzle Functions
@@ -214,16 +215,26 @@ def load_skill() -> dict:
     }
 
 def save_skill(seed: bytes, contract_address: str) -> None:
-    lock_file = SKILL_LOCK_PATH
     waited = 0
-    while lock_file.exists():
-        time.sleep(0.1)
-        waited += 1
-        if waited > 50:
-            print(f"{c('skill')}[Skill]{C.RST} {c('warn')}[WARN]{C.RST} Lock timeout -- writing anyway")
+    lock_fd = None
+    while True:
+        try:
+            lock_fd = os.open(str(SKILL_LOCK_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             break
-
-    lock_file.write_text(str(time.time()), encoding="utf-8")
+        except FileExistsError:
+            time.sleep(0.1)
+            waited += 1
+            if waited > 50:
+                print(f"{c('skill')}[Skill]{C.RST} {c('warn')}[WARN]{C.RST} Lock timeout -- writing anyway")
+                try:
+                    SKILL_LOCK_PATH.unlink()
+                except FileNotFoundError:
+                    pass
+                try:
+                    lock_fd = os.open(str(SKILL_LOCK_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                except FileExistsError:
+                    pass
+                break
     try:
         content = SKILL_PATH.read_text(encoding="utf-8")
         found_seed = False
@@ -244,8 +255,10 @@ def save_skill(seed: bytes, contract_address: str) -> None:
         os.replace(tmp_path, SKILL_PATH)
         print(f"{c('skill')}[Skill]{C.RST} {c('ok')}[OK]{C.RST} skill.md updated: seed={c('dim')}0x{seed.hex()}{C.RST}")
     finally:
-        if lock_file.exists():
-            lock_file.unlink()
+        if lock_fd is not None:
+            os.close(lock_fd)
+        if SKILL_LOCK_PATH.exists():
+            SKILL_LOCK_PATH.unlink()
 
 # -----------------------------------------------------------
 # Blockchain Interaction
@@ -268,7 +281,7 @@ def mint_bliphood(w3: Web3, contract: Contract, nonce: int, owner: str) -> Tuple
         onchain_cost = contract.functions.mintCost().call()
         cost_to_send = max(MINT_COST, onchain_cost)
 
-        max_priority = w3.eth.max_priority_fee
+        max_priority = w3.eth.max_priority_fee or Web3.to_wei(1, 'gwei')
         tx = contract.functions.solveAndMint(nonce).transact({
             "from":                owner,
             "value":               cost_to_send,
@@ -321,7 +334,7 @@ def report_solve(wallet: str, total_solves: int, last_nonce: int, solve_time_ms:
             "txHash": tx_hash,
         }).encode()
         req = urllib.request.Request(DASHBOARD_URL, data=data,
-            headers={"Content-Type": "application/json"}, method="POST")
+            headers={"Content-Type": "application/json", "x-api-key": REPORT_SECRET}, method="POST")
         resp = urllib.request.urlopen(req, timeout=5)
         body = resp.read().decode()
         print(f"{c('dim')}[Report] OK -> {DASHBOARD_URL}: {body}{C.RST}")
@@ -341,7 +354,7 @@ def report_stats(wallet: str) -> None:
             "daily": daily,
         }).encode()
         req = urllib.request.Request(DASHBOARD_URL, data=data,
-            headers={"Content-Type": "application/json"}, method="POST")
+            headers={"Content-Type": "application/json", "x-api-key": REPORT_SECRET}, method="POST")
         resp = urllib.request.urlopen(req, timeout=5)
         body = resp.read().decode()
         print(f"{c('dim')}[Stats] OK -> {DASHBOARD_URL}: {body}{C.RST}")
@@ -409,6 +422,7 @@ def main() -> None:
     global PRIVATE_KEY
 
     mp.freeze_support()
+    mp.set_start_method('spawn', force=True)
 
     parser = argparse.ArgumentParser(description="BlipHood Agent Solver")
     parser.add_argument("--rounds", type=int, default=0, help="Run N rounds then exit (0=infinite)")

@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAgentStore, getActivityLog, broadcastSSE, countActiveAgents } from "@/lib/store";
 import { getPuzzleInfo, invalidatePuzzleCache, invalidateLeaderboardCache, registerMiner } from "@/lib/contract";
 
+const REPORT_SECRET = process.env.REPORT_SECRET || "bliphood-agent-secret";
+
 export async function POST(req: NextRequest) {
+  const apiKey = req.headers.get("x-api-key");
+  if (!REPORT_SECRET || apiKey !== REPORT_SECRET) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const body = await req.json();
   const { wallet, totalSolves, lastNonce, solveTimeMs, gasUsed, txHash } = body;
   if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });

@@ -145,16 +145,17 @@ deploy_info = {
 (Path(__file__).parent / "deploy.json").write_text(json.dumps(deploy_info, indent=2))
 print(f"\nSaved to deploy.json")
 
-# Update dashboard config.json
-dashboard_config = Path(__file__).parent.parent / "archiver-dashboard" / "config.json"
-if dashboard_config.parent.exists():
-    config = {
-        "contract": addr,
-        "chainId": CHAIN_ID,
-        "rpc": RPC_URL
-    }
-    dashboard_config.write_text(json.dumps(config, indent=2))
-    print("Updated dashboard config.json")
+# Update dashboard .env.local
+dashboard_env = Path(__file__).parent.parent / "bliphood-dashboard-v2" / ".env.local"
+if dashboard_env.parent.exists():
+    try:
+        content = dashboard_env.read_text(encoding="utf-8")
+        if "NEXT_PUBLIC_CONTRACT_ADDRESS" not in content:
+            content += f"\nNEXT_PUBLIC_CONTRACT_ADDRESS={addr}\n"
+            dashboard_env.write_text(content)
+            print("Updated dashboard .env.local")
+    except Exception:
+        pass
 
 # Update skill.md
 skill_path = Path(__file__).parent / "skill.md"

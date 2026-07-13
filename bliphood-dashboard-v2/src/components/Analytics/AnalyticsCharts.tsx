@@ -26,19 +26,19 @@ export function AnalyticsCharts() {
   const [interval, setInterval] = useState<"daily" | "weekly">("daily");
   const [days, setDays] = useState(30);
 
-  const { data: mints } = useQuery({
+  const { data: mints, error: mintsError } = useQuery({
     queryKey: ["dailyMints", days],
     queryFn: () => fetchDailyMints(days),
     refetchInterval: 30000,
   });
 
-  const { data: stats } = useQuery({
+  const { data: stats, error: statsError } = useQuery({
     queryKey: ["stats"],
     queryFn: () => fetchStats(),
     refetchInterval: 10000,
   });
 
-  const { data: puzzle } = useQuery({
+  const { data: puzzle, error: puzzleError } = useQuery({
     queryKey: ["puzzle"],
     queryFn: () => fetchPuzzleInfo(),
     refetchInterval: 10000,

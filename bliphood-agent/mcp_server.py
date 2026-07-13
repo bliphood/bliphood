@@ -42,7 +42,8 @@ MINT_COST    = Web3.to_wei(MINT_COST_ETH, 'ether')
 MINT_AMOUNT  = 20_000 * 10**18
 PUZZLE_KW    = keccak(b"BLIPHOOD_PUZZLE_SEED")
 MAX_NONCE    = 2**64 - 1
-DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://bliphood-dashboard.vercel.app/api/report")
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://bliphood.vercel.app/api/report")
+REPORT_SECRET = os.getenv("REPORT_SECRET", "bliphood-agent-secret")
 
 ENV_PATH = Path(__file__).parent / ".env"
 if ENV_PATH.exists():
@@ -125,7 +126,7 @@ def _report_stats(wallet: str) -> None:
             "daily": daily,
         }).encode()
         req = urllib.request.Request(DASHBOARD_URL, data=data,
-            headers={"Content-Type": "application/json"}, method="POST")
+            headers={"Content-Type": "application/json", "x-api-key": REPORT_SECRET}, method="POST")
         urllib.request.urlopen(req, timeout=5)
     except Exception:
         pass
@@ -213,7 +214,7 @@ def mint_blip(rounds: int = 1) -> str:
             "solveTimeMs": solve_ms if nonce else 0
         }).encode()
         req = urllib.request.Request(DASHBOARD_URL, data=data,
-            headers={"Content-Type": "application/json"}, method="POST")
+            headers={"Content-Type": "application/json", "x-api-key": REPORT_SECRET}, method="POST")
         urllib.request.urlopen(req, timeout=3)
     except Exception:
         pass
@@ -287,7 +288,7 @@ def get_stats() -> str:
             f"ETH spent: {local['total_eth_spent']} ETH",
             f"Total gas: {local['total_gas']:,}",
             f"Solves/hr: {local['solves_per_hour']}",
-            f"Dashboard: https://bliphood-dashboard.vercel.app",
+            f"Dashboard: https://bliphood.vercel.app",
         ]
 
         _report_stats(w3.eth.default_account)
@@ -300,8 +301,8 @@ def get_stats() -> str:
 def get_dashboard() -> str:
     """Get the BlipHood dashboard URL and instructions."""
     return (
-        "Dashboard: https://bliphood-dashboard.vercel.app\n"
-        "Agent API: https://bliphood-dashboard.vercel.app/api\n"
+        "Dashboard: https://bliphood.vercel.app\n"
+        "Agent API: https://bliphood.vercel.app/api\n"
         "Live stats, active solvers, minting progress in real-time."
     )
 

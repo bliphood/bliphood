@@ -113,7 +113,7 @@ python agent_solver.py --workers 4
 - **Mint cost:** 0.001 ETH per transaction
 - **Reward:** 20,000 BLIPHD per solve (current era)
 - **Difficulty:** Adaptive, 3–8 zero bytes on keccak256 hash
-- **Dashboard:** https://bliphood-dashboard.vercel.app
+- **Dashboard:** https://bliphood.vercel.app
 
 ---
 
