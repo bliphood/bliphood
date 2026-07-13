@@ -1,40 +1,60 @@
-# Tutorial: Mint BLIPHD via AI (Claude Desktop + Cursor)
+# Tutorial: Mining BLIPHD Token
 
-## Setup
+## Prerequisites
 
-### 1. Clone repository
-```bash
-git clone https://github.com/bliphood/bliphood.git
-cd bliphood/bliphood-agent
-```
-
-### 2. Install dependencies
-```bash
-pip install web3 pycryptodome mcp
-```
-
-### 3. Setup .env
-Create `.env` file in the `bliphood-agent` folder:
-```
-BLIPHOOD_PRIVATE_KEY=your_64_hex_private_key_without_0x
-BLIPHOOD_RPC_URL=https://robinhood-testnet.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
-BLIPHOOD_CHAIN_ID=46630
-```
-
-### 4. Get ETH testnet
-Claim faucet at: https://explorer.testnet.chain.robinhood.com
+- **Python 3.10+** installed
+- **Git** installed
+- **Ethereum wallet** with ETH balance on **Robinhood Testnet** (Chain ID: 46630)
+- **Private key** (64 hex characters, without `0x` prefix)
 
 ---
 
-## Method 1: Claude Desktop (Recommended)
+## Step 1: Clone & Install Dependencies
 
-### Install Claude Desktop
-1. Download from https://claude.ai/download
-2. Install & login
+```bash
+git clone https://github.com/bliphood/bliphood.git
+cd bliphood\bliphood-agent
+pip install web3 pycryptodome mcp
+```
 
-### Add MCP Server
-1. Open **Settings → Developer → Edit Config**
-2. Edit `claude_desktop_config.json`:
+---
+
+## Step 2: Configuration
+
+Create `.env` file in the `bliphood-agent` directory:
+
+```
+BLIPHOOD_PRIVATE_KEY=your_64_character_hex_private_key
+BLIPHOOD_RPC_URL=https://robinhood-testnet.g.alchemy.com/v2/demo
+BLIPHOOD_CHAIN_ID=46630
+```
+
+Verify setup:
+
+```bash
+python _rpc_test.py
+```
+
+Expected output: `✅ RPC OK`
+
+---
+
+## Step 3: Choose Mining Method
+
+Three methods available:
+
+| Method | Description |
+|--------|-------------|
+| A. Claude Desktop | Mining via AI chat — easiest |
+| B. Cursor IDE | Direct IDE integration |
+| C. CLI Agent | 24/7 terminal-based mining |
+
+---
+
+### A. Claude Desktop
+
+Add MCP server via **Settings → Developer → Edit Config** (`claude_desktop_config.json`):
+
 ```json
 {
   "mcpServers": {
@@ -45,97 +65,64 @@ Claim faucet at: https://explorer.testnet.chain.robinhood.com
   }
 }
 ```
-3. Restart Claude Desktop
-4. Check the 🔌 icon at the bottom right — if green, the MCP server is connected
 
-### Start Minting
-Open Claude, type a natural language command:
+Restart Claude Desktop. A green 🔌 icon in the bottom right corner indicates the server is connected.
 
-```
-mint 2 BLIPHD
-```
+**Available commands:**
 
-Claude will automatically call `mint_blip(2)` — solve puzzle + send transaction. Output:
-
-```
-Round 1: 20,000 BLIPHD minted | nonce=5,234,891 | 8.2s | tx: 0xabc123...
-Round 2: 20,000 BLIPHD minted | nonce=12,890,334 | 12.1s | tx: 0xdef456...
-BLIPHD Balance: 40,000 BLIPHD
-ETH Balance: 0.0210 ETH
-```
-
-### Other Commands
 | Command | Function |
-|---|---|
+|---------|----------|
+| `mint 2 BLIPHD` | Mine 2 rounds (max 5) |
 | `cek saldo` | View ETH & BLIPHD balance |
-| `show stats` | Puzzle info + mining analytics |
-| `buka dashboard` | Link to web dashboard |
-| `mint 3 blip` | Mint 3x at once (max 5) |
+| `show stats` | Puzzle info & mining statistics |
+| `buka dashboard` | Get dashboard URL |
 
 ---
 
-## Method 2: Cursor IDE
+### B. Cursor IDE
 
-### Setup
-1. Open Cursor → Settings → Features
-2. Scroll to **MCP Servers**
-3. Add a new server:
-   - Name: `bliphood`
-   - Type: `command`
-   - Command: `python D:\PROJECT\BLIP BLOP\bliphood-agent\mcp_server.py`
-4. Save
+**Settings → Features → MCP Servers → Add New MCP Server:**
 
-### Usage
-In Cursor chat, type:
-```
-@bliphood mint 2 BLIPHD
-```
+- Name: `bliphood`
+- Type: `command`
+- Command: `python D:\PROJECT\BLIP BLOP\bliphood-agent\mcp_server.py`
+
+Usage in chat: `@bliphood mint 2 BLIPHD`
 
 ---
 
-## Method 3: Run Agent Solver Directly (24/7 Mining)
+### C. CLI Agent (24/7 Mining)
 
 ```bash
 cd bliphood-agent
 python agent_solver.py --workers 4
 ```
 
-- `--once` — run 1 solve
-- `--rounds 10` — stop after 10 rounds
-- `--workers 4` — use 4 CPU cores
-- `--stats` — view local analytics database
+| Flag | Function |
+|------|----------|
+| `--once` | Mine 1 round then stop |
+| `--rounds N` | Stop after N rounds |
+| `--workers N` | Number of CPU cores (default: 4) |
+| `--stats` | Display local database statistics |
 
 ---
 
-## Project Structure
+## Technical Information
 
-```
-BLIP BLOP/
-├── bliphood-agent/        ← Agent mining + MCP server
-│   ├── agent_solver.py    # 24/7 mining bot
-│   ├── mcp_server.py      # AI agent bridge (Claude/Cursor)
-│   ├── bliphood_v1_abi.json
-│   ├── db.py              # SQLite analytics
-│   └── skill.md           # Contract config & seed
-└── bliphood-dashboard-v2/ ← Next.js web dashboard
-    └── src/
-        ├── app/            # Pages + API routes
-        ├── components/     # UI components
-        └── lib/            # Contract service, store, types
-```
+- **Contract:** `0x08f8C4aeb91c1881385C6922641A501d68bA9575`
+- **Mint cost:** 0.001 ETH per transaction
+- **Reward:** 20,000 BLIPHD per solve (current era)
+- **Difficulty:** Adaptive, 3–8 zero bytes on keccak256 hash
+- **Dashboard:** https://bliphood-dashboard.vercel.app
 
 ---
 
 ## Troubleshooting
 
-**MCP server not connecting:**
-- Check `mcp` is installed: `pip show mcp`
-- Check Python path is correct in `claude_desktop_config.json`
-
-**Insufficient ETH:**
-- Claim faucet from Robinhood Testnet explorer
-- 1 mint = 0.001 ETH
-
-**Puzzle not solved:**
-- Difficulty 3 zero bytes = ~16 million nonces scanned per round
-- Use `--workers 4` for speed-up
+| Issue | Solution |
+|-------|----------|
+| MCP server not connecting | Verify `pip show mcp`, check Python path in config |
+| Insufficient ETH | Claim faucet at https://explorer.testnet.chain.robinhood.com |
+| Puzzle not solved | Early difficulty averages ~16M attempts. Increase `--workers` |
+| RPC error/timeout | Switch to alternative endpoint, verify with `python _rpc_test.py` |
+| Invalid private key | Ensure format: 64 hex characters, no `0x` prefix |

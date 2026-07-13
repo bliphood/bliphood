@@ -26,6 +26,9 @@ from web3.contract import Contract
 from web3.exceptions import TimeExhausted
 from web3.middleware import SignAndSendRawMiddlewareBuilder
 from Crypto.Hash import keccak as _keccak_mod
+import urllib3
+urllib3.disable_warnings()
+import requests as _requests
 
 import db
 
@@ -435,7 +438,9 @@ def main() -> None:
         print(f"{E}ERROR{R}: Set BLIPHOOD_PRIVATE_KEY (or DEPLOYER_PRIVATE_KEY) env var")
         sys.exit(1)
 
-    w3 = Web3(Web3.HTTPProvider(RPC_URL))
+    _session = _requests.Session()
+    _session.verify = False
+    w3 = Web3(Web3.HTTPProvider(RPC_URL, session=_session))
     if not w3.is_connected():
         print(f"{E}ERROR{R}: Cannot connect to {c('val')}{RPC_URL}{R}")
         sys.exit(1)
