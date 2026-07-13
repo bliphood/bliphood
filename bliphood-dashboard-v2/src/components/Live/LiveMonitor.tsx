@@ -103,7 +103,7 @@ export function LiveMonitor() {
           <span className="font-mono text-xs text-white/30 uppercase tracking-wider">LIVE SOLVE FEED</span>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse-live" />
-            <span className="font-mono text-[10px] text-white/15">STREAMING</span>
+            <span className="font-mono text-[10px] text-white/15">POLLING</span>
           </div>
         </div>
         <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto">
