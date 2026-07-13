@@ -25,7 +25,16 @@ export function useSSE<T>() {
             .then((r) => r.json())
             .then((res) => {
               if (stopped) return;
-              const recent = (res.activity || []) as T[];
+              const recent = ((res.activity || []) as any[]).map((item: any) => ({
+                wallet: item.wallet || "",
+                amount: item.amount || 20000,
+                nonce: item.nonce || 0,
+                timestamp: item.timestamp || Math.floor((item.time || Date.now()) / 1000),
+                txHash: item.txHash || "",
+                difficulty: item.difficulty || 3,
+                solveTimeMs: item.solveTimeMs || item.solveMs || 0,
+                isJackpot: item.isJackpot || false,
+              })) as unknown as T[];
               if (recent.length > 0) {
                 setData((prev) => {
                   const existing = new Set(prev.map((item: any) => item.txHash || item.time));

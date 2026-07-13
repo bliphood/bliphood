@@ -26,7 +26,8 @@ export async function fetchAgents(): Promise<{ agents: AgentEntry[]; activeCount
 
 export async function fetchPuzzleInfo(): Promise<PuzzleInfo> {
   const res = await fetch(`${BASE}/api/stats?puzzle=true`, { next: { revalidate: 5 } });
-  return res.json();
+  const data = await res.json();
+  return data.puzzle || data;
 }
 
 export async function reportSolve(body: {

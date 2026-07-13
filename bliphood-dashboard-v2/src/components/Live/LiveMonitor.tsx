@@ -112,34 +112,36 @@ export function LiveMonitor() {
               <span className="font-mono text-xs text-white/15">WAITING FOR SOLVES...</span>
             </div>
           ) : (
-            liveSolves.map((s, i) => (
+            liveSolves.map((s: any, i) => (
               <div
-                key={`${s.txHash}-${i}`}
+                key={`${s.txHash || i}-${i}`}
                 className="flex items-center gap-6 px-6 py-3 hover:bg-white/[0.01] transition-colors"
               >
                 <span className="font-mono text-[10px] text-white/15 w-16 shrink-0">
-                  {new Date(s.timestamp * 1000).toLocaleTimeString()}
+                  {new Date((s.timestamp || (s.time / 1000)) * 1000).toLocaleTimeString()}
                 </span>
                 <span className="font-mono text-xs text-white/60 w-28 shrink-0 truncate">
-                  {s.wallet.slice(0, 10)}...
+                  {s.wallet}
                 </span>
                 <span className={`font-mono text-xs font-semibold w-20 shrink-0 ${s.isJackpot ? "text-accent" : "text-white/80"}`}>
-                  {s.isJackpot ? "🔥 " : ""}{s.amount.toLocaleString()}
+                  {s.isJackpot ? "🔥 " : ""}{(s.amount || 0).toLocaleString()}
                 </span>
                 <span className="font-mono text-[10px] text-white/20 w-16 shrink-0">
-                  D{s.difficulty}
+                  D{s.difficulty || "—"}
                 </span>
                 <span className="font-mono text-xs text-white/30 w-20 shrink-0">
-                  {(s.solveTimeMs / 1000).toFixed(2)}s
+                  {((s.solveTimeMs || s.solveMs || 0) / 1000).toFixed(2)}s
                 </span>
-                <a
-                  href={`https://explorer.testnet.chain.robinhood.com/tx/${s.txHash}`}
-                  target="_blank"
-                  rel="noopener"
-                  className="font-mono text-[10px] text-white/10 hover:text-accent transition-colors truncate"
-                >
-                  TX
-                </a>
+                {s.txHash ? (
+                  <a
+                    href={`https://explorer.testnet.chain.robinhood.com/tx/${s.txHash}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="font-mono text-[10px] text-white/10 hover:text-accent transition-colors truncate"
+                  >
+                    TX
+                  </a>
+                ) : null}
               </div>
             ))
           )}
