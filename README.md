@@ -1,143 +1,143 @@
-# BlipHood
+# BlipHood Agent Solver
 
-**Solve puzzles. Mint tokens. Earn rewards.**
-
-BlipHood is a Proof-of-Work mining protocol on Robinhood Testnet. Your computer solves mathematical puzzles — each solution mints BLIPHD tokens directly to your wallet.
+Automated puzzle-mining bot for BLIPHD token on **Robinhood Testnet** (Chain ID: 46630). Solves keccak256 zero-prefix hash puzzles, submits solutions on-chain, and mints **20,000 BLIPHD** per solve at **0.001 ETH** cost.
 
 ---
 
-## How It Works
+## Prerequisites
 
-```
-You run the miner → It finds a special number (nonce) → Submits to smart contract → You get BLIPHD tokens
-```
-
-The puzzle: find a number where `keccak256(BLIPHOOD_PUZZLE_SEED + seed + nonce)` starts with 3 zero bytes. Each solve costs 0.001 ETH and rewards 20,000 BLIPHD.
-
-Difficulty auto-adjusts based on how fast people are solving. Reward halves every 100M tokens mined (4 eras total).
+- **Python 3.10+** installed
+- **Git** installed
+- **Ethereum wallet** with ETH balance on Robinhood Testnet
+- **Private key** (64 hex characters, without `0x` prefix)
 
 ---
 
-## Quick Start
+## Step 1: Clone & Install Dependencies
 
-### Option 1: Mine via AI (Easiest)
-
-```
+```bash
+git clone https://github.com/bliphood/bliphood.git
+cd bliphood\bliphood-agent
 pip install web3 pycryptodome mcp
-mint 2 BLIPHD          # Type this in Claude or Cursor
 ```
 
-[See full AI setup guide →](bliphood-agent/TUTORIAL.md)
+---
 
-### Option 2: Mine with the Bot
+## Step 2: Configuration
+
+Create `.env` file in the `bliphood-agent` directory:
+
+```
+BLIPHOOD_PRIVATE_KEY=your_64_character_hex_private_key
+BLIPHOOD_RPC_URL=https://robinhood-testnet.g.alchemy.com/v2/demo
+BLIPHOOD_CHAIN_ID=46630
+```
+
+Verify setup:
 
 ```bash
-pip install web3 pycryptodome
+python _rpc_test.py
+```
+
+Expected output: `✅ RPC OK`
+
+---
+
+## Step 3: Choose Mining Method
+
+| Method | Description |
+|--------|-------------|
+| A. Claude Desktop | Mining via AI chat — easiest |
+| B. Cursor IDE | Direct IDE integration |
+| C. CLI Agent | 24/7 terminal-based mining |
+
+### A. Claude Desktop
+
+Add MCP server via **Settings → Developer → Edit Config** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "bliphood": {
+      "command": "python",
+      "args": ["D:\\PROJECT\\BLIP BLOP\\bliphood-agent\\mcp_server.py"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. A green 🔌 icon in the bottom right corner indicates the server is connected.
+
+**Available commands:**
+
+| Command | Function |
+|---------|----------|
+| `mint 2 BLIPHD` | Mine 2 rounds (max 5) |
+| `cek saldo` | View ETH & BLIPHD balance |
+| `show stats` | Puzzle info & mining statistics |
+| `buka dashboard` | Get dashboard URL |
+
+### B. Cursor IDE
+
+**Settings → Features → MCP Servers → Add New MCP Server:**
+
+- Name: `bliphood`
+- Type: `command`
+- Command: `python D:\PROJECT\BLIP BLOP\bliphood-agent\mcp_server.py`
+
+Usage in chat: `@bliphood mint 2 BLIPHD`
+
+### C. CLI Agent (24/7 Mining)
+
+```bash
 cd bliphood-agent
-python agent_solver.py --once         # Mine 1 time
-python agent_solver.py --workers 4    # Mine 24/7 with 4 CPU cores
+python agent_solver.py --workers 4
 ```
 
-### Option 3: Run the Dashboard
-
-```bash
-cd bliphood-dashboard-v2
-npm install
-npm run dev                           # Opens at http://localhost:3000
-```
+| Flag | Function |
+|------|----------|
+| `--once` | Mine 1 round then stop |
+| `--rounds N` | Stop after N rounds |
+| `--workers N` | Number of CPU cores (default: 4) |
+| `--stats` | Display local database statistics |
 
 ---
 
-## Tokenomics
+## Technical Information
 
-| Detail | Value |
-|---|---|
-| Max Supply | 1,000,000,000 BLIPHD |
-| Mineable | 900,000,000 BLIPHD |
-| LP + Dev | 50M + 50M BLIPHD |
-| Mint Cost | 0.001 ETH |
-| Difficulty | 3-8 zero bytes (adaptive) |
-
-| Era | Reward | Supply Range |
-|---|---|---|
-| Era 0 | 20,000 BLIPHD | 0 – 100M mined |
-| Era 1 | 15,000 BLIPHD | 100M – 200M mined |
-| Era 2 | 10,000 BLIPHD | 200M – 300M mined |
-| Era 3 | 5,000 BLIPHD | 300M – 400M mined |
-
-**Bonuses:**
-- 🎰 **Jackpot**: 0.25% chance of 3x reward with difficulty 8
-- 🔥 **Streak**: Solve within 1 hour of last solve = up to 10% bonus
+- **Contract:** `0x08f8C4aeb91c1881385C6922641A501d68bA9575`
+- **Mint cost:** 0.001 ETH per transaction
+- **Reward:** 20,000 BLIPHD per solve (current era)
+- **Difficulty:** Adaptive, 3–8 zero bytes on keccak256 hash
+- **Dashboard:** https://bliphood-dashboard.vercel.app
+- **RPC:** https://robinhood-testnet.g.alchemy.com/v2/demo
+- **Explorer:** https://explorer.testnet.chain.robinhood.com
 
 ---
 
-## Project Structure
+## Files
 
-```
-├── bliphood-agent/           Python mining bot
-│   ├── agent_solver.py       Multi-core PoW solver
-│   ├── mcp_server.py         AI bridge (Claude / Cursor)
-│   ├── deploy.py             Deploy smart contract
-│   └── BlipHoodV1.sol        Solidity source code
-│
-├── bliphood-dashboard-v2/    Next.js web dashboard
-│   ├── Live Monitor          Real-time puzzle state (SSE)
-│   ├── Leaderboard           On-chain miner rankings
-│   ├── Analytics             Charts + supply curve
-│   └── Wallet Dashboard      Your stats + solve history
-│
-└── bliphood-agent/TUTORIAL.md   How to mint via AI
-```
+| File | Purpose |
+|------|---------|
+| `agent_solver.py` | 24/7 CLI miner with multiprocessing |
+| `mcp_server.py` | MCP server for AI agent control (Claude/Cursor) |
+| `db.py` | Local SQLite analytics database |
+| `BlipHoodV1.sol` | Smart contract (Solidity 0.8.20) |
+| `deploy.py` | Contract deployment script |
+| `_rpc_test.py` | RPC connectivity test utility |
+| `_check2.py` | On-chain state query utility |
 
 ---
 
-## Dashboard Features
+## Troubleshooting
 
-| Page | What It Shows |
-|---|---|
-| **Home** | Hero + canvas animation + network stats |
-| **Live** | Current puzzle seed, difficulty, live solve feed (SSE) |
-| **Leaderboard** | Top miners ranked by solves, streak, speed |
-| **Analytics** | Mint volume chart, difficulty trends, supply curve |
-| **Wallet** | Connect MetaMask → personal stats, solve history, streak |
-
-All data pulled directly from the smart contract on-chain. No mock, no fake data.
-
----
-
-## For Developers
-
-### API Endpoints
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/stats` | GET | Network stats (supply, solvers, progress) |
-| `/api/leaderboard` | GET | Miner rankings |
-| `/api/recent` | GET | Latest solve activity |
-| `/api/agents` | GET | Active miner agents |
-| `/api/report` | POST | Agent reports a solve |
-| `/api/sse` | GET | Real-time event stream |
-
-Agent bots automatically report solves via `POST /api/report`. The dashboard updates in real-time.
-
-### Smart Contract
-
-```
-Chain:    Robinhood Testnet (46630)
-Contract: 0x08f8C4aeb91c1881385C6922641A501d68bA9575
-Token:    BLIPHD (ERC-20)
-Explorer: https://explorer.testnet.chain.robinhood.com
-```
-
----
-
-## Requirements
-
-**Mining bot:** Python 3.9+, web3.py, pycryptodome
-**Dashboard:** Node.js 20+, Next.js 16
-**AI bridge:** mcp (pip install mcp)
-
----
+| Issue | Solution |
+|-------|----------|
+| MCP server not connecting | Verify `pip show mcp`, check Python path in config |
+| Insufficient ETH | Claim faucet at https://explorer.testnet.chain.robinhood.com |
+| Puzzle not solved | Early difficulty averages ~16M attempts. Increase `--workers` |
+| RPC error/timeout | Switch to alternative endpoint, verify with `python _rpc_test.py` |
+| Invalid private key | Ensure format: 64 hex characters, no `0x` prefix |
 
 ## Links
 
