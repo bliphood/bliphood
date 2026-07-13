@@ -37,5 +37,6 @@ bliphood.db-shm
 .vscode/
 .idea/
 *.swp
-*.swo".env"  
-"skill.md"  
+*.swo
+
+

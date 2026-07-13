@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ethers } from "ethers";
 import { getActivityLog } from "@/lib/store";
 import { getProvider, getContract, shortAddr } from "@/lib/contract";
 

@@ -52,7 +52,7 @@ python agent_solver.py --stats   # View analytics
 
 ## Network
 
-- **Chain:** Robinhood Testnet (46646)
-- **RPC:** https://rpc.testnet.chain.robinhood.com
+- **Chain:** Robinhood Testnet (46630)
+- **RPC:** https://robinhood-testnet.g.alchemy.com/v2/demo
 - **Currency:** Native ETH
 - **Explorer:** https://testnet.explorer.chain.robinhood.com

@@ -266,9 +266,6 @@ def mint_bliphood(w3: Web3, contract: Contract, nonce: int, owner: str) -> Tuple
             return False, "", 0, 0, 0
 
         onchain_cost = contract.functions.mintCost().call()
-
-        # Check on-chain mint cost (owner may have changed it)
-        onchain_cost = contract.functions.mintCost().call()
         cost_to_send = max(MINT_COST, onchain_cost)
 
         max_priority = w3.eth.max_priority_fee
