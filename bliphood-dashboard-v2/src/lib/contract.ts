@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import ABI from "./abi.json";
 
-const RPC = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || "https://robinhood-testnet.g.alchemy.com/v2/demo";
+const RPC = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || "https://robinhood-testnet.g.alchemy.com/v2/52gCkKBLBwldBTiLFIPcT";
 const CONTRACT = "0x08f8C4aeb91c1881385C6922641A501d68bA9575";
 export const EXPLORER = "https://explorer.testnet.chain.robinhood.com";
 export const DECIMALS = 18;
@@ -11,7 +11,11 @@ let provider: ethers.JsonRpcProvider | null = null;
 let contract: ethers.Contract | null = null;
 
 export function getProvider(): ethers.JsonRpcProvider {
-  if (!provider) provider = new ethers.JsonRpcProvider(RPC);
+  if (!provider) {
+    const fetchReq = new ethers.FetchRequest(RPC);
+    fetchReq.timeout = 8000;
+    provider = new ethers.JsonRpcProvider(fetchReq);
+  }
   return provider;
 }
 
@@ -188,43 +192,19 @@ export function registerMiner(addr: string) {
   KNOWN_MINERS.add(addr.toLowerCase());
 }
 
-async function discoverMiners(c: ethers.Contract, p: ethers.JsonRpcProvider): Promise<Set<string>> {
-  const miners = new Set<string>();
-  try {
-    const current = await p.getBlockNumber();
-    const fromBlock = Math.max(current - 100, DEPLOY_BLOCK);
-
-    for (let f = fromBlock; f <= current; f += 11) {
-      const to = Math.min(f + 10, current);
-      try {
-        const events = await c.queryFilter(c.filters.Minted(), f, to);
-        for (const e of events) {
-          miners.add(((e as ethers.EventLog).args[0] as string).toLowerCase());
-        }
-      } catch { /* */ }
-    }
-  } catch { /* */ }
-  return miners;
-}
-
 export async function getCachedLeaderboard(period: "24h" | "7d" | "all" = "all") {
   const now = Date.now();
   if (lbCache && lbCache.period === period && now - lbCache.timestamp < LB_CACHE_MS) return lbCache.entries;
 
   const c = getContract();
 
-  // Discover miners from on-chain Minted events (parallel block scans)
-  const miners = await discoverMiners(c, getProvider());
-
-  // Merge in-memory agentStore miners
+  // Merge on-chain miners from agent store + pre-seeded
   try {
     const { getAgentStore } = await import("./store");
     for (const addr of getAgentStore().keys()) {
-      miners.add(addr.toLowerCase());
+      KNOWN_MINERS.add(addr.toLowerCase());
     }
   } catch { /* */ }
-
-  for (const m of miners) KNOWN_MINERS.add(m);
 
   if (KNOWN_MINERS.size === 0) {
     try {
@@ -233,14 +213,12 @@ export async function getCachedLeaderboard(period: "24h" | "7d" | "all" = "all")
   }
 
   const minerArr = Array.from(KNOWN_MINERS).slice(-50);
-  // Sequential getMinerStats to avoid Alchemy free tier rate limit
   const entries: Array<{ wallet: string; walletFull: string; totalSolved: number; totalEarned: number; bestStreak: number; fastestSolveMs: number; lastSolveTime: number }> = [];
 
-  const sleep = (ms: number) => new Promise((r) => { setTimeout(r, ms); });
-
-  for (const addr of minerArr) {
+  // Fetch stats for up to 10 miners max to stay under Vercel 10s limit
+  const toFetch = minerArr.slice(-10);
+  for (const addr of toFetch) {
     const stats = await getMinerStats(addr);
-    await sleep(100);
     if (!stats || stats.totalSolved === 0) continue;
     entries.push({
       wallet: shortAddr(addr),
